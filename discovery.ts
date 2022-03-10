@@ -9,13 +9,17 @@ const DISCOVERY_CHANNEL = "colyseus:nodes:discovery";
 
 console.log({ REDIS_CLUSTER, REDIS_PREFIX, REDIS_URL });
 
-const redisOptions = { keyPrefix: REDIS_PREFIX };
-const redis = REDIS_CLUSTER
-    ? new Redis.Cluster([REDIS_URL], { redisOptions })
-    : new Redis(REDIS_URL, redisOptions);
-const sub = REDIS_CLUSTER
-    ? new Redis.Cluster([REDIS_URL], { redisOptions })
-    : new Redis(REDIS_URL, redisOptions);
+function createRedisConnection() {
+    return REDIS_CLUSTER
+        ? new Redis.Cluster([REDIS_URL], {
+              // @ts-expect-error `keyPrefix` option path doesn't match the types and docs https://github.com/luin/ioredis/issues/1024
+              keyPrefix: REDIS_PREFIX,
+          })
+        : new Redis(REDIS_URL, { keyPrefix: REDIS_PREFIX });
+}
+
+const redis = createRedisConnection();
+const sub = createRedisConnection();
 
 export interface Node {
     processId: string;

@@ -43,6 +43,8 @@ function register(node: Node) {
   // skip if already registered
   if (processIds[node.processId]) { return; }
 
+  console.debug('Registering', node)
+
   const [host, port] = node.address!.split(":");
 
   const proxy = httpProxy.createProxy({
