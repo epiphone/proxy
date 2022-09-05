@@ -70,7 +70,7 @@ function register(node: Node) {
     console.error(err.stack);
 
     const errorMessage = err.message.toLowerCase();
-    if(!errorMessage.includes("socket hang up") && !errorMessage.includes("econnreset")) {
+    if(!errorMessage.includes("socket hang up") && !errorMessage.includes("econnreset") && !errorMessage.includes("socket has been ended by the other party")) {
       console.warn(`node ${node.processId}/${node.address} failed, unregistering`);
       unregister(node);
       cleanUpNode(node).then(() => console.log(`cleaned up ${node.processId} presence`));
