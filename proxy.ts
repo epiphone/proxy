@@ -13,6 +13,7 @@ const processIds: { [id: string]: httpProxy } = {}
 
 let currProxy: number = 0;
 const proxies: httpProxy[] = [];
+let lastProxiesRefreshAt = Date.now();
 
 http.globalAgent = new http.Agent({ keepAlive: true });
 https.globalAgent = new https.Agent({ keepAlive: true });
@@ -112,10 +113,17 @@ listen((action: Action, node: Node) => {
   }
 })
 
+async function refreshProxies(): Promise<void> {
+    try {
+        const nodes = await getNodeList();
+        nodes.forEach((node) => register(node));
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 // query pre-existing nodes
-getNodeList().
-  then(nodes => nodes.forEach(node => register(node))).
-  catch(err => console.error(err));
+void refreshProxies();
 
 const reqHandler = (req: http.IncomingMessage, res: http.ServerResponse) => {
   const healthCheckPath = process.env.HEALTH_CHECK_PATH;
@@ -130,16 +138,24 @@ const reqHandler = (req: http.IncomingMessage, res: http.ServerResponse) => {
     return;
   }
 
-  const proxy = getProxy(req.url!);
+  const mustRefreshProxies =
+      proxies.length === 0 && Date.now() - lastProxiesRefreshAt > 10_000;
 
-  if (proxy) {
-    proxy.web(req, res);
+  const refreshProxiesPromise = mustRefreshProxies
+      ? refreshProxies()
+      : Promise.resolve();
 
-  } else {
-    console.error("No proxy available!", processIds);
-    res.statusCode = 503;
-    res.end();
-  }
+  void refreshProxiesPromise.then(() => {
+      const proxy = getProxy(req.url!);
+
+      if (proxy) {
+          proxy.web(req, res);
+      } else {
+          console.error("No proxy available!", processIds);
+          res.statusCode = 503;
+          res.end();
+      }
+  });
 };
 
 const server = (process.env.SSL_KEY && process.env.SSL_CERT)
